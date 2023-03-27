@@ -1,15 +1,44 @@
 # 4.2.2 自定义分类填充器
 ## 用scikit-learn的TransformerMixin基类创建我们的自定义分类填充器
-* `from sklearn.base import TransformerMixin`
+* 代码：
+```python
+from sklearn.base import TransformerMixin
+
+class CustomCategoryImputer(TransformerMixin):
+    def __init__(self, cols=None):
+        self.cols = cols
+
+    def transform(self, df):
+        X = df.copy()
+        for col in self.cols:
+            # 分类特征fillna，使用出现次数做最多的特征填充
+            X[col].fillna(X[col].value_counts().index[0], inplace=True)
+        return X
+
+    def fit(self, *_):
+        return self
+```
 
 # 4.2.3 自定义定量填充器
 ## 可以不分别调用并用fit_transform拟合转换CustomCategoryImputer和Custom-QuantitativeImputer，而是把它们放在流水线中
 * 示例：
-```
-# 从sklearn导入Pipeline
-from sklearn.pipeline import Pipeline
-imputer = Pipeline([('quant', cqi), ('category', cci)])
-imputer.fit_transform(X)
+```python
+# 按名称对列进行转换的填充器
+from sklearn.preprocessing import Imputer
+class CustomQuantitativeImputer(TransformerMixin):
+    def __init__(self, cols=None, strategy='mean'):
+        self.cols = cols
+        self.strategy = strategy
+
+    def transform(self, df):
+        X = df.copy()
+        impute = Imputer(strategy=self.strategy)
+        for col in self.cols:
+            X[col] = impute.fit_transform(X[[col]])
+        return X
+
+    def fit(self, *_):
+        return self
 ```
 
 # 4.3.1 定类等级的编码
@@ -26,7 +55,8 @@ imputer.fit_transform(X)
 1. 在定序等级，由于数据的顺序有含义，使用虚拟变量是没有意义的。为了保持顺序，我们使用标签编码器。
 2. 标签编码器是指，顺序数据的每个标签都会有一个相关数值。在我们的例子中，这意味着顺序列的值（dislike、somewhat like和like）会用0、1、2来表示。
     - `print(X['ordinal_column'].map(lambda x: ordering.index(x)))  # 将ordering映射到顺序列`
-    - 注意，我们没有使用scikit-learn的LabelEncoder，因为这个方法不能像上面的代码那样对顺序进行编码（0表示dislike，1表示somewhat like，2表示like）
+    - 注意，我们没有使用scikit-learn的LabelEncoder，因为这个方法不能像上面的代码那样对顺序进行编码（0表示dislike，1表示somewhat like，
+    2表示like）
 3. 将自定义标签编码器放进流水线中
 
 # 4.3.3 将连续特征分箱
